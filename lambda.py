@@ -13,16 +13,18 @@ import boto3
 from botocore.exceptions import ClientError
 
 
-REGION = os.getenv("REGION")
-S3_BUCKET = os.getenv("S3_BUCKET")
-RECIPIENT = os.getenv("RECIPIENT")
-REPLY_ADDR = os.getenv("REPLY_ADDR")  # replies@domain.tld
-NO_REPLY_ADDR = os.getenv("NO_REPLY_ADDR")  # noreply@domain.tld
+REGION = os.getenv("REGION")  # us-east-1
+S3_BUCKET = os.getenv("S3_BUCKET")  # your-bucket-name
+DOMAIN = os.getenv("DOMAIN")  # domain.tld
+TOKEN = os.getenv("TOKEN")  # any token, a SHA1 token works well because of only 32 character length
+RECIPIENT = os.getenv("RECIPIENT")  # user@domain.tld
+REPLY_ADDR = os.getenv("REPLY_ADDR")  # replies  -- this will become <REPLY_ADDR>_<TOKEN>@<DOMAIN>
+NO_REPLY_ADDR = os.getenv("NO_REPLY_ADDR")  # noreply  -- this will become <NO_REPLY_ADDR>@<DOMAIN>
+BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")  #  bouncer  -- this will become <BOUNCE_ADDR>@<DOMAIN>
 FROM_ALLOWLIST = os.getenv("FROM_ALLOWLIST")  # user1@domain.tld,user2@domain.tld
 FROM_DOMAIN_BLOCKLIST = os.getenv("FROM_DOMAIN_BLOCKLIST") or None  # domain1.tld,domain2.tld
 FROM_ADDR_BLOCKLIST = os.getenv("FROM_ADDR_BLOCKLIST") or None  # user1@domain1.tld,user1@domain2.tld
 TO_ADDR_BLOCKLIST = os.getenv("TO_ADDR_BLOCKLIST") or None  # user1@domain1.tld,user1@domain2.tld
-BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")  #  bouncer@domain.tld
 
 
 class CreateError(Exception):
@@ -93,6 +95,16 @@ def bounce_blocklist(message_id, to_addr, from_addr):
         raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
 
 
+def sender_auth(to_addr, from_addr):
+    if to_addr.partition("@")[0].partition("_")[2] != TOKEN:
+        raise CreateError("Invalid token")
+
+    if from_addr not in FROM_ALLOWLIST.replace(" ", "").split(","):
+        raise CreateError(
+            f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
+        )
+
+
 def create_message(message_id):
     obj = email.message_from_string(
         get_message_from_s3(message_id).decode(), policy=email.policy.default
@@ -115,24 +127,20 @@ def create_message(message_id):
         ):
             msg.attach(payload)
 
-    if to_addr == REPLY_ADDR and in_reply_to:
+    if to_addr == f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}" and in_reply_to:
+        sender_auth(to_addr, from_addr)
         clean_in_reply_to = (
             in_reply_to.replace("<", "").replace(">", "").partition("@")[0]
         )
-        print(f"Message is a reply to Message-ID: '{clean_in_reply_to}'")
-        if from_addr not in FROM_ALLOWLIST.replace(" ", "").split(","):
-            raise CreateError(
-                f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
-            )
         r = get_item_from_db(clean_in_reply_to)
         sender = r["to"]
         recipient = r["from"]
     else:
         sender = (
-            f""""{from_addr}" [Relayed from "{to_addr}"] <{NO_REPLY_ADDR}>"""
+            f""""{from_addr}" [Relayed from "{to_addr}"] <{NO_REPLY_ADDR}@{DOMAIN}>"""
         )
         recipient = RECIPIENT
-        msg["Reply-To"] = REPLY_ADDR
+        msg["Reply-To"] = f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}"
 
     msg["Subject"] = obj.get("Subject")
     msg["From"] = sender
@@ -164,7 +172,7 @@ def send_bounce(message_id, recipient, reason):
         client_ses = boto3.client("ses", REGION)
         resp = client_ses.send_bounce(
             OriginalMessageId=message_id,
-            BounceSender=BOUNCE_ADDR,
+            BounceSender=f"{BOUNCE_ADDR}@{DOMAIN}",
             BouncedRecipientInfoList=[
                 {
                     "Recipient": recipient,
@@ -202,7 +210,7 @@ def lambda_handler(event, context):
     else:
         print(f"""Email sent! Message-ID: '{resp["MessageId"]}'""")
 
-    if to_addr != REPLY_ADDR:
+    if to_addr != f"{REPLY_ADDR}@{DOMAIN}":
         try:
             write_item_to_db(resp["MessageId"], to_addr, from_addr)
         except Exception as e:
