@@ -13,18 +13,57 @@ import boto3
 from botocore.exceptions import ClientError
 
 
-REGION = os.getenv("REGION")  # us-east-1
-S3_BUCKET = os.getenv("S3_BUCKET")  # your-bucket-name
-DOMAIN = os.getenv("DOMAIN")  # domain.tld
-TOKEN = os.getenv("TOKEN")  # any token, a SHA1 token works well because of only 32 character length
-RECIPIENT = os.getenv("RECIPIENT")  # user@domain.tld
-REPLY_ADDR = os.getenv("REPLY_ADDR")  # replies  -- this will become <REPLY_ADDR>_<TOKEN>@<DOMAIN>
-NO_REPLY_ADDR = os.getenv("NO_REPLY_ADDR")  # noreply  -- this will become <NO_REPLY_ADDR>@<DOMAIN>
-BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")  #  bouncer  -- this will become <BOUNCE_ADDR>@<DOMAIN>
-FROM_ALLOWLIST = os.getenv("FROM_ALLOWLIST")  # user1@domain.tld,user2@domain.tld
-FROM_DOMAIN_BLOCKLIST = os.getenv("FROM_DOMAIN_BLOCKLIST") or None  # domain1.tld,domain2.tld
-FROM_ADDR_BLOCKLIST = os.getenv("FROM_ADDR_BLOCKLIST") or None  # user1@domain1.tld,user1@domain2.tld
-TO_ADDR_BLOCKLIST = os.getenv("TO_ADDR_BLOCKLIST") or None  # user1@domain1.tld,user1@domain2.tld
+# us-east-1
+REGION = os.getenv("REGION")
+
+# your-bucket-name
+S3_BUCKET = os.getenv("S3_BUCKET")
+
+# domain.tld
+DOMAIN = os.getenv("DOMAIN")
+
+# any token, a SHA1 token works well because of only 32 character length
+TOKEN = os.getenv("TOKEN")
+
+# user@domain.tld
+RECIPIENT = os.getenv("RECIPIENT")
+
+# replies  -- this will become <REPLY_ADDR>_<TOKEN>@<DOMAIN>
+REPLY_ADDR = os.getenv("REPLY_ADDR")
+
+# noreply  -- this will become <NO_REPLY_ADDR>@<DOMAIN>
+NO_REPLY_ADDR = os.getenv("NO_REPLY_ADDR")
+
+#  bouncer  -- this will become <BOUNCE_ADDR>@<DOMAIN>
+BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")
+
+# user1@domain.tld,user2@domain.tld
+FROM_ALLOWLIST = os.getenv("FROM_ALLOWLIST")
+FROM_ALLOWLIST = (
+    FROM_ALLOWLIST.replace(" ", "").split(",")
+    if FROM_ALLOWLIST else None
+)
+
+# domain1.tld,domain2.tld
+FROM_DOMAIN_BLOCKLIST = os.getenv("FROM_DOMAIN_BLOCKLIST") or None
+FROM_DOMAIN_BLOCKLIST = (
+    FROM_DOMAIN_BLOCKLIST.replace(" ", "").split(",")
+    if FROM_DOMAIN_BLOCKLIST else None
+)
+
+# user1@domain1.tld,user1@domain2.tld
+FROM_ADDR_BLOCKLIST = os.getenv("FROM_ADDR_BLOCKLIST") or None
+FROM_ADDR_BLOCKLIST = (
+    FROM_ADDR_BLOCKLIST.replace(" ", "").split(",")
+    if FROM_ADDR_BLOCKLIST else None
+)
+
+# user1@domain1.tld,user1@domain2.tld
+TO_ADDR_BLOCKLIST = os.getenv("TO_ADDR_BLOCKLIST") or None
+TO_ADDR_BLOCKLIST = (
+    TO_ADDR_BLOCKLIST.replace(" ", "").split(",")
+    if TO_ADDR_BLOCKLIST else None
+)
 
 
 class CreateError(Exception):
@@ -64,42 +103,56 @@ def get_item_from_db(message_id):
 
 def get_message_from_s3(message_id):
     print(f"Read Message-ID: '{message_id}' from S3")
-    object_s3 = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=message_id)
+    object_s3 = boto3.client("s3").get_object(
+        Bucket=S3_BUCKET, Key=message_id
+    )
     return object_s3["Body"].read()
 
 
 def bounce_blocklist(message_id, to_addr, from_addr):
     if (
         TO_ADDR_BLOCKLIST and
-        to_addr in TO_ADDR_BLOCKLIST.replace(" ", "").split(",")
+        to_addr in TO_ADDR_BLOCKLIST
     ):
         print(f"'{to_addr}' is in TO_ADDR_BLOCKLIST: '{TO_ADDR_BLOCKLIST}'")
-        raise Bounce(message_id=message_id, recipient=to_addr, reason="DoesNotExist")
+        raise Bounce(
+            message_id=message_id,
+            recipient=to_addr,
+            reason="DoesNotExist"
+        )
 
     if (
         FROM_DOMAIN_BLOCKLIST and
-        from_addr.partition("@")[2] in FROM_DOMAIN_BLOCKLIST.replace(" ", "").split(",")
+        from_addr.partition("@")[2] in FROM_DOMAIN_BLOCKLIST
     ):
         print(
             f"'{from_addr}' is in FROM_DOMAIN_BLOCKLIST: '{FROM_DOMAIN_BLOCKLIST}'"
         )
-        raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
+        raise Bounce(
+            message_id=message_id,
+            recipient=to_addr,
+            reason="ContentRejected"
+        )
 
     if (
         FROM_ADDR_BLOCKLIST and
-        from_addr in FROM_ADDR_BLOCKLIST.replace(" ", "").split(",")
+        from_addr in FROM_ADDR_BLOCKLIST
     ):
         print(
             f"'{from_addr}' is in FROM_ADDR_BLOCKLIST: '{FROM_ADDR_BLOCKLIST}'"
         )
-        raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
+        raise Bounce(
+            message_id=message_id,
+            recipient=to_addr,
+            reason="ContentRejected"
+        )
 
 
 def sender_auth(to_addr, from_addr):
     if to_addr.partition("@")[0].partition("_")[2] != TOKEN:
         raise CreateError("Invalid token")
 
-    if from_addr not in FROM_ALLOWLIST.replace(" ", "").split(","):
+    if from_addr not in FROM_ALLOWLIST:
         raise CreateError(
             f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
         )
@@ -107,7 +160,8 @@ def sender_auth(to_addr, from_addr):
 
 def create_message(message_id):
     obj = email.message_from_string(
-        get_message_from_s3(message_id).decode(), policy=email.policy.default
+        get_message_from_s3(message_id).decode(),
+        policy=email.policy.default
     )
 
     msg = email.mime.multipart.MIMEMultipart()
@@ -137,7 +191,8 @@ def create_message(message_id):
         recipient = r["from"]
     else:
         sender = (
-            f""""{from_addr}" [Relayed from "{to_addr}"] <{NO_REPLY_ADDR}@{DOMAIN}>"""
+            f""""{from_addr}" [Relayed from "{to_addr}"] """
+            f"""<{NO_REPLY_ADDR}@{DOMAIN}>"""
         )
         recipient = RECIPIENT
         msg["Reply-To"] = f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}"
@@ -173,12 +228,7 @@ def send_bounce(message_id, recipient, reason):
         resp = client_ses.send_bounce(
             OriginalMessageId=message_id,
             BounceSender=f"{BOUNCE_ADDR}@{DOMAIN}",
-            BouncedRecipientInfoList=[
-                {
-                    "Recipient": recipient,
-                    "BounceType": reason
-                }
-            ],
+            BouncedRecipientInfoList=[{"Recipient": recipient, "BounceType": reason}],
         )
     except ClientError as e:
         print(f"""Failed to send email: {e.response["Error"]["Message"]}""")
