@@ -42,7 +42,7 @@ class Bounce(Exception):
 
 
 def write_item_to_db(message_id, to_addr, from_addr):
-    print(f"Write Message-ID: {message_id} to DB")
+    print(f"Write Message-ID: '{message_id}' to DB")
     db = boto3.resource("dynamodb").Table("emails")
     db.put_item(
         Item={
@@ -55,60 +55,71 @@ def write_item_to_db(message_id, to_addr, from_addr):
 
 
 def get_item_from_db(message_id):
-    print(f"Read Message-ID: {message_id} from DB")
+    print(f"Read Message-ID: '{message_id}' from DB")
     db = boto3.resource("dynamodb").Table("emails")
     return db.get_item(Key={"message_id": message_id})["Item"]
 
 
 def get_message_from_s3(message_id):
-    print(f"Read Message-ID: {message_id} from S3")
+    print(f"Read Message-ID: '{message_id}' from S3")
     object_s3 = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=message_id)
     return object_s3["Body"].read()
 
 
-def create_message(message_id):
-    mo = email.message_from_string(
-        get_message_from_s3(message_id).decode(), policy=email.policy.default
-    )
-
-    msg = email.mime.multipart.MIMEMultipart()
-    body = mo.get_body()
-    msg.attach(body)
-
-    to_addr = email.utils.parseaddr(mo.get("To"))[1]
-    from_addr = email.utils.parseaddr(mo.get("From"))[1]
-    in_reply_to = mo.get("In-Reply-To")
-
+def bounce_blocklist(message_id, to_addr, from_addr):
     if (
         TO_ADDR_BLOCKLIST and
         to_addr in TO_ADDR_BLOCKLIST.replace(" ", "").split(",")
     ):
-        print(f"'{to_addr}' is in TO_ADDR_BLOCKLIST")
+        print(f"'{to_addr}' is in TO_ADDR_BLOCKLIST: '{TO_ADDR_BLOCKLIST}'")
         raise Bounce(message_id=message_id, recipient=to_addr, reason="DoesNotExist")
 
     if (
         FROM_DOMAIN_BLOCKLIST and
         from_addr.partition("@")[2] in FROM_DOMAIN_BLOCKLIST.replace(" ", "").split(",")
-    ) or (
+    ):
+        print(
+            f"'{from_addr}' is in FROM_DOMAIN_BLOCKLIST: '{FROM_DOMAIN_BLOCKLIST}'"
+        )
+        raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
+
+    if (
         FROM_ADDR_BLOCKLIST and
         from_addr in FROM_ADDR_BLOCKLIST.replace(" ", "").split(",")
     ):
         print(
-            f"'{from_addr}' is either in FROM_DOMAIN_BLOCKLIST or FROM_ADDR_BLOCKLIST"
+            f"'{from_addr}' is in FROM_ADDR_BLOCKLIST: '{FROM_ADDR_BLOCKLIST}'"
         )
         raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
 
-    for payload in mo.get_payload():
+
+def create_message(message_id):
+    obj = email.message_from_string(
+        get_message_from_s3(message_id).decode(), policy=email.policy.default
+    )
+
+    msg = email.mime.multipart.MIMEMultipart()
+    body = obj.get_body()
+    msg.attach(body)
+
+    to_addr = email.utils.parseaddr(obj.get("To"))[1]
+    from_addr = email.utils.parseaddr(obj.get("From"))[1]
+    in_reply_to = obj.get("In-Reply-To")
+
+    bounce_blocklist(message_id, to_addr, from_addr)
+
+    for payload in obj.get_payload():
         if (
             isinstance(payload, email.message.EmailMessage)
             and payload.is_attachment()
         ):
             msg.attach(payload)
+
     if to_addr == REPLY_ADDR and in_reply_to:
         clean_in_reply_to = (
             in_reply_to.replace("<", "").replace(">", "").partition("@")[0]
         )
-        print(f"Message is a reply to Message-ID: {clean_in_reply_to}")
+        print(f"Message is a reply to Message-ID: '{clean_in_reply_to}'")
         if from_addr not in FROM_ALLOWLIST.replace(" ", "").split(","):
             raise CreateError(
                 f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
@@ -123,17 +134,17 @@ def create_message(message_id):
         recipient = RECIPIENT
         msg["Reply-To"] = REPLY_ADDR
 
-    if in_reply_to:
-        msg["In-Reply-To"] = in_reply_to
-    if mo.get_all("References"):
-        msg["References"] = "\r\n ".join(mo.get_all("References"))
-    msg["Subject"] = mo.get("Subject")
+    msg["Subject"] = obj.get("Subject")
     msg["From"] = sender
     msg["To"] = recipient
 
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+    if obj.get_all("References"):
+        msg["References"] = "\r\n ".join(obj.get_all("References"))
+
     return (
-        to_addr,
-        from_addr,
+        to_addr, from_addr,
         {
             "FromEmailAddress": sender,
             "Destination": {"ToAddresses": [recipient]},
@@ -165,12 +176,12 @@ def send_bounce(message_id, recipient, reason):
         print(f"""Failed to send email: {e.response["Error"]["Message"]}""")
         raise e
     else:
-        print(f"""Bounce sent! Message-ID: {resp["MessageId"]}""")
+        print(f"""Bounce sent! Message-ID: '{resp["MessageId"]}'""")
 
 
 def lambda_handler(event, context):
     message_id = event["Records"][0]["ses"]["mail"]["messageId"]
-    print(f"Received Message-ID: {message_id}")
+    print(f"Received Message-ID: '{message_id}'")
 
     try:
         to_addr, from_addr, message = create_message(message_id)
@@ -189,7 +200,7 @@ def lambda_handler(event, context):
         print(f"""Failed to send email: {e.response["Error"]["Message"]}""")
         raise e
     else:
-        print(f"""Email sent! Message-ID: {resp["MessageId"]}""")
+        print(f"""Email sent! Message-ID: '{resp["MessageId"]}'""")
 
     if to_addr != REPLY_ADDR:
         try:
