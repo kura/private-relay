@@ -84,8 +84,7 @@ class Bounce(Exception):
 
 def write_item_to_db(message_id, to_addr, from_addr):
     print(f"Write Message-ID: '{message_id}' to DB")
-    db = boto3.resource("dynamodb").Table("emails")
-    db.put_item(
+    boto3.resource("dynamodb").Table("emails").put_item(
         Item={
             "message_id": message_id,
             "to": email.utils.parseaddr(to_addr)[1],
@@ -97,16 +96,16 @@ def write_item_to_db(message_id, to_addr, from_addr):
 
 def get_item_from_db(message_id):
     print(f"Read Message-ID: '{message_id}' from DB")
-    db = boto3.resource("dynamodb").Table("emails")
-    return db.get_item(Key={"message_id": message_id})["Item"]
+    return boto3.resource("dynamodb").Table("emails").get_item(
+        Key={"message_id": message_id}
+    )["Item"]
 
 
 def get_message_from_s3(message_id):
     print(f"Read Message-ID: '{message_id}' from S3")
-    object_s3 = boto3.client("s3").get_object(
+    return boto3.client("s3").get_object(
         Bucket=S3_BUCKET, Key=message_id
-    )
-    return object_s3["Body"].read()
+    )["Body"].read()
 
 
 def bounce_blocklist(message_id, to_addr, from_addr):
@@ -156,6 +155,24 @@ def sender_auth(to_addr, from_addr):
         raise CreateError(
             f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
         )
+
+
+def send_email(message):
+    return boto3.client("sesv2", REGION).send_email(**message)
+
+
+def send_bounce(message_id, recipient, reason):
+    try:
+        resp = boto3.client("ses", REGION).send_bounce(
+            OriginalMessageId=message_id,
+            BounceSender=f"{BOUNCE_ADDR}@{DOMAIN}",
+            BouncedRecipientInfoList=[{"Recipient": recipient, "BounceType": reason}],
+        )
+    except ClientError as e:
+        print(f"""Failed to send email: {e.response["Error"]["Message"]}""")
+        raise e
+    else:
+        print(f"""Bounce sent! Message-ID: '{resp["MessageId"]}'""")
 
 
 def create_message(message_id):
@@ -215,26 +232,6 @@ def create_message(message_id):
             "Content": {"Raw": {"Data": msg.as_string().encode()}},
         },
     )
-
-
-def send_email(message):
-    client_ses = boto3.client("sesv2", REGION)
-    return client_ses.send_email(**message)
-
-
-def send_bounce(message_id, recipient, reason):
-    try:
-        client_ses = boto3.client("ses", REGION)
-        resp = client_ses.send_bounce(
-            OriginalMessageId=message_id,
-            BounceSender=f"{BOUNCE_ADDR}@{DOMAIN}",
-            BouncedRecipientInfoList=[{"Recipient": recipient, "BounceType": reason}],
-        )
-    except ClientError as e:
-        print(f"""Failed to send email: {e.response["Error"]["Message"]}""")
-        raise e
-    else:
-        print(f"""Bounce sent! Message-ID: '{resp["MessageId"]}'""")
 
 
 def lambda_handler(event, context):
