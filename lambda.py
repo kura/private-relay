@@ -44,27 +44,6 @@ FROM_ALLOWLIST = (
     if FROM_ALLOWLIST else None
 )
 
-# domain1.tld,domain2.tld
-FROM_DOMAIN_BLOCKLIST = os.getenv("FROM_DOMAIN_BLOCKLIST") or None
-FROM_DOMAIN_BLOCKLIST = (
-    FROM_DOMAIN_BLOCKLIST.replace(" ", "").split(",")
-    if FROM_DOMAIN_BLOCKLIST else None
-)
-
-# user1@domain1.tld,user1@domain2.tld
-FROM_ADDR_BLOCKLIST = os.getenv("FROM_ADDR_BLOCKLIST") or None
-FROM_ADDR_BLOCKLIST = (
-    FROM_ADDR_BLOCKLIST.replace(" ", "").split(",")
-    if FROM_ADDR_BLOCKLIST else None
-)
-
-# user1@domain1.tld,user1@domain2.tld
-TO_ADDR_BLOCKLIST = os.getenv("TO_ADDR_BLOCKLIST") or None
-TO_ADDR_BLOCKLIST = (
-    TO_ADDR_BLOCKLIST.replace(" ", "").split(",")
-    if TO_ADDR_BLOCKLIST else None
-)
-
 
 class CreateError(Exception):
     pass
@@ -82,7 +61,7 @@ class Bounce(Exception):
         super().__init__()
 
 
-def write_item_to_db(message_id, to_addr, from_addr):
+def put_db_message(message_id, to_addr, from_addr):
     print(f"Write Message-ID: '{message_id}' to DB")
     boto3.resource("dynamodb").Table("emails").put_item(
         Item={
@@ -94,7 +73,7 @@ def write_item_to_db(message_id, to_addr, from_addr):
     )
 
 
-def get_item_from_db(message_id):
+def get_db_message(message_id):
     print(f"Read Message-ID: '{message_id}' from DB")
     return boto3.resource("dynamodb").Table("emails").get_item(
         Key={"message_id": message_id}
@@ -107,39 +86,34 @@ def get_message_from_s3(message_id):
         Bucket=S3_BUCKET, Key=message_id
     )["Body"].read()
 
+def get_db_blocklist(address):
+    try:
+        return boto3.resource("dynamodb").Table("blocklist").get_item(
+            Key={"address": address}
+        )["Item"]
+    except KeyError:
+        return None
+
 
 def bounce_blocklist(message_id, to_addr, from_addr):
-    if (
-        TO_ADDR_BLOCKLIST and
-        to_addr in TO_ADDR_BLOCKLIST
-    ):
-        print(f"'{to_addr}' is in TO_ADDR_BLOCKLIST: '{TO_ADDR_BLOCKLIST}'")
+    if get_db_blocklist(to_addr):
+        print(f"'{to_addr}' is in BLOCKLIST: 'to_addr'")
         raise Bounce(
             message_id=message_id,
             recipient=to_addr,
             reason="DoesNotExist"
         )
 
-    if (
-        FROM_DOMAIN_BLOCKLIST and
-        from_addr.partition("@")[2] in FROM_DOMAIN_BLOCKLIST
-    ):
-        print(
-            f"'{from_addr}' is in FROM_DOMAIN_BLOCKLIST: '{FROM_DOMAIN_BLOCKLIST}'"
-        )
+    if get_db_blocklist(from_addr):
+        print(f"'{from_addr}' is in BLOCKLIST: 'from_addr'")
         raise Bounce(
             message_id=message_id,
             recipient=to_addr,
             reason="ContentRejected"
         )
 
-    if (
-        FROM_ADDR_BLOCKLIST and
-        from_addr in FROM_ADDR_BLOCKLIST
-    ):
-        print(
-            f"'{from_addr}' is in FROM_ADDR_BLOCKLIST: '{FROM_ADDR_BLOCKLIST}'"
-        )
+    if get_db_blocklist(from_addr.partition("@")[2]):
+        print(f"""'{from_addr.partition("@")[2]}' is in BLOCKLIST: 'from_domain'""")
         raise Bounce(
             message_id=message_id,
             recipient=to_addr,
@@ -203,7 +177,7 @@ def create_message(message_id):
         clean_in_reply_to = (
             in_reply_to.replace("<", "").replace(">", "").partition("@")[0]
         )
-        r = get_item_from_db(clean_in_reply_to)
+        r = get_db_message(clean_in_reply_to)
         sender = r["to"]
         recipient = r["from"]
     else:
@@ -259,7 +233,7 @@ def lambda_handler(event, context):
 
     if to_addr != f"{REPLY_ADDR}@{DOMAIN}":
         try:
-            write_item_to_db(resp["MessageId"], to_addr, from_addr)
+            put_db_message(resp["MessageId"], to_addr, from_addr)
         except Exception as e:
             print(traceback.format_exc())
             pass
