@@ -231,7 +231,7 @@ def lambda_handler(event, context):
     else:
         print(f"""Email sent! Message-ID: '{resp["MessageId"]}'""")
 
-    if to_addr != f"{REPLY_ADDR}@{DOMAIN}":
+    if to_addr != f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}":
         try:
             put_db_message(resp["MessageId"], to_addr, from_addr)
         except Exception as e:
