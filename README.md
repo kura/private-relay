@@ -13,6 +13,26 @@ retry of the Lambda execution. Meaning, email that fails to send will
 result in a Lambda retry (the number of retries will depend on the
 number of retries configured for the lambda, which by default is 2.)
 
+# Initiating emails using the `NEW_ADDR`
+This allows you to email `<NEW_ADDR>_<TOKEN>@<DOMAIN>` with a subject 
+matching the following format:
+```
+<FROM_ADDR> # <TO_ADDR> # <SUBJECT>
+```
+and have that email forward to the to address, from the from address
+with the specified subject.
+
+I.e. a subject line of `some_alias@aliasdomain.tld # webmaster@example.com # Hi`
+will send an email as:
+```
+From: some_alias@aliasdomain.tld
+To: webmaster@example.com
+Subject: Hi
+```
+
+This means you can initiate email conversations from your aliased domain without
+needing them to email you first.
+
 # Setup
 * DynamoDB table called `emails` with string partition key and index called `message_id`
 * DynamoDB table called `blocklist` with string partition key and index called `address`
@@ -32,3 +52,4 @@ number of retries configured for the lambda, which by default is 2.)
     * `NO_REPLY_ADDR` - address to concat with domain, used as `From:` header, e.g. `noreply` (becomes `From: <NO_REPLY_ADDR>@<DOMAIN>`)
     * `BOUNCE_ADDR` - address to concac with domain, used as `From:` header in bounces e.g. `bouncer` (becomes `From: <BOUNCE_ADDR>@<DOMAIN>`)
     * `FROM_ALLOWLIST` - list of addresses allowed to reply, separated by `,`, e.g. `my.addr@gmail.com`
+    * `NEW_ADDR`- address to concat with token and domain as `To:`, e.g. `new` (becomes `To: <NEW_ADDR>_<TOKEN>@<DOMAIN>`)
