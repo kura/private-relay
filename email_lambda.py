@@ -8,6 +8,7 @@ import email.parser
 import os
 import time
 import traceback
+from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
@@ -100,11 +101,28 @@ def get_db_message(message_id):
     )["Item"]
 
 
+def put_db_history(to_addr, from_addr):
+    uuid = str(uuid4())
+    to_addr = email.utils.parseaddr(to_addr)[1]
+    from_addr = email.utils.parseaddr(from_addr)[1]
+    if f"@{DOMAIN}" in to_addr:
+        print(f"Write history to DB")
+        boto3.resource("dynamodb").Table("history").put_item(
+            Item={
+                "id": uuid,
+                "to": to_addr,
+                "from": from_addr,
+                "expires": int(time.time()) + 31536000,  # 365 days
+            }
+        )
+
+
 def get_message_from_s3(message_id):
     print(f"Read Message-ID: '{message_id}' from S3")
     return boto3.client("s3").get_object(
         Bucket=S3_BUCKET, Key=message_id
     )["Body"].read()
+
 
 def get_db_blocklist(address):
     try:
@@ -261,6 +279,7 @@ def lambda_handler(event, context):
     if to_addr != f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}":
         try:
             put_db_message(resp["MessageId"], to_addr, from_addr)
+            put_db_history(to_addr, from_addr)
         except Exception as e:
             print(traceback.format_exc())
             pass
