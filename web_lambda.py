@@ -7,18 +7,63 @@ from botocore.exceptions import ClientError
 PW = os.getenv("PW")
 
 BASE = """
-<!DOCTYPE html>
+<!doctype html>
+<html>
+<head>
 <style>
-td, th {{
+html {{
+  line-height:1.15;
+}}
+body {{
+margin: 1em;
+}}
+main {{
+  display: block;
+}}
+h1 {{
+  font-size: 2em;
+  margin: .67em 0;
+}}
+.table {{
+  width: 80%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  empty-cells: show;
+  border: 1px solid #cbcbcb;
+}}
+.table td, .table th {{
+  border-left: 1px solid #cbcbcb;
+  border-width: 0 0 0 1px;
+  font-size: inherit;
+  margin: 0;
+  overflow: visible;
+  padding: .5em 1em;
+}}
+.table thead {{
+  background-color: #e0e0e0;
+  color: #000;
+  text-align: left;
+  vertical-align: bottom;
+}}
+.table td {{
   text-align: left;
   vertical-align: top;
 }}
-table {{
-  width: 80%;
+.table tr:nth-child(odd) td, .inner-table tr:nth-child(odd) td {{
+  background-color: #ffffff;
+}}
+.inner-table tr:nth-child(odd) td {{
+  background-color: #ffffff !important;
+}}
+.table tr:nth-child(even) td, .inner-table tr:nth-child(even) td {{
+  background-color: #f2f2f2;
+}}
+inner-table tr:nth-child(even) td {{
+  background-color: #f2f2f2 !important;
 }}
 .tabs {{
   position: relative;
-  min-height: 200px; /* This part sucks */
+  min-height: 200px;
   clear: both;
   margin: 25px 0;
 }}
@@ -81,17 +126,21 @@ table {{
   font-size: 1rem;
 }}
 </style>
-<title>Stats</title>
-<h1>Stats</h1>
+<title>Private Relay Statistics</title>
+</head>
+<body>
+<h1>Private Relay Statistics</h1>
 <h2>History</h2>
 {history}
 <h2>Blocklist</h2>
 {blocklist}
+</body>
+<html>
 """
 
 HISTORY_BASE = """
-<table>
-<tr><th>Address</th><th>Emails received</th><th>From addresses</th></tr>
+<table class="table">
+<thead><tr><th>Address</th><th>Emails received</th><th>From addresses</th></tr></thead>
 {rows}
 </table>
 """
@@ -112,7 +161,7 @@ HISTORY_ROW = """
 """
 
 HISTORY_FROM_TABLE = """
-<table>
+<table class="table inner-table">
 {rows}
 </table>
 """
