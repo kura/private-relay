@@ -60,10 +60,7 @@ BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")
 
 # user1@domain.tld,user2@domain.tld
 FROM_ALLOWLIST = os.getenv("FROM_ALLOWLIST")
-FROM_ALLOWLIST = (
-    FROM_ALLOWLIST.replace(" ", "").split(",")
-    if FROM_ALLOWLIST else None
-)
+FROM_ALLOWLIST = FROM_ALLOWLIST.replace(" ", "").split(",") if FROM_ALLOWLIST else None
 
 
 class CreateError(Exception):
@@ -96,9 +93,7 @@ def put_db_message(message_id, to_addr, from_addr):
 
 def get_db_message(message_id):
     print(f"Read Message-ID: '{message_id}' from DB")
-    return boto3.resource("dynamodb").Table("emails").get_item(
-        Key={"message_id": message_id}
-    )["Item"]
+    return boto3.resource("dynamodb").Table("emails").get_item(Key={"message_id": message_id})["Item"]
 
 
 def put_db_history(to_addr, from_addr):
@@ -119,16 +114,12 @@ def put_db_history(to_addr, from_addr):
 
 def get_message_from_s3(message_id):
     print(f"Read Message-ID: '{message_id}' from S3")
-    return boto3.client("s3").get_object(
-        Bucket=S3_BUCKET, Key=message_id
-    )["Body"].read()
+    return boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=message_id)["Body"].read()
 
 
 def get_db_blocklist(address):
     try:
-        return boto3.resource("dynamodb").Table("blocklist").get_item(
-            Key={"address": address}
-        )["Item"]
+        return boto3.resource("dynamodb").Table("blocklist").get_item(Key={"address": address})["Item"]
     except KeyError:
         return None
 
@@ -136,27 +127,15 @@ def get_db_blocklist(address):
 def bounce_blocklist(message_id, to_addr, from_addr):
     if get_db_blocklist(to_addr):
         print(f"'{to_addr}' is in BLOCKLIST: 'to_addr'")
-        raise Bounce(
-            message_id=message_id,
-            recipient=to_addr,
-            reason="DoesNotExist"
-        )
+        raise Bounce(message_id=message_id, recipient=to_addr, reason="DoesNotExist")
 
     if get_db_blocklist(from_addr):
         print(f"'{from_addr}' is in BLOCKLIST: 'from_addr'")
-        raise Bounce(
-            message_id=message_id,
-            recipient=to_addr,
-            reason="ContentRejected"
-        )
+        raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
 
     if get_db_blocklist(from_addr.partition("@")[2]):
         print(f"""'{from_addr.partition("@")[2]}' is in BLOCKLIST: 'from_domain'""")
-        raise Bounce(
-            message_id=message_id,
-            recipient=to_addr,
-            reason="ContentRejected"
-        )
+        raise Bounce(message_id=message_id, recipient=to_addr, reason="ContentRejected")
 
 
 def sender_auth(to_addr, from_addr):
@@ -164,9 +143,7 @@ def sender_auth(to_addr, from_addr):
         raise CreateError("Invalid token")
 
     if from_addr not in FROM_ALLOWLIST:
-        raise CreateError(
-            f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')"
-        )
+        raise CreateError(f"'{from_addr}' not in allow list ('{FROM_ALLOWLIST}')")
 
 
 def send_email(message):
@@ -188,10 +165,7 @@ def send_bounce(message_id, recipient, reason):
 
 
 def create_message(message_id):
-    obj = email.message_from_string(
-        get_message_from_s3(message_id).decode(),
-        policy=email.policy.default
-    )
+    obj = email.message_from_string(get_message_from_s3(message_id).decode(), policy=email.policy.default)
 
     msg = email.mime.multipart.MIMEMultipart()
     body = obj.get_body()
@@ -205,17 +179,12 @@ def create_message(message_id):
     bounce_blocklist(message_id, to_addr, from_addr)
 
     for payload in obj.get_payload():
-        if (
-            isinstance(payload, email.message.EmailMessage)
-            and payload.is_attachment()
-        ):
+        if isinstance(payload, email.message.EmailMessage) and payload.is_attachment():
             msg.attach(payload)
 
     if to_addr == f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}" and in_reply_to:
         sender_auth(to_addr, from_addr)
-        clean_in_reply_to = (
-            in_reply_to.replace("<", "").replace(">", "").partition("@")[0]
-        )
+        clean_in_reply_to = in_reply_to.replace("<", "").replace(">", "").partition("@")[0]
         r = get_db_message(clean_in_reply_to)
         sender = r["to"]
         recipient = r["from"]
@@ -226,10 +195,7 @@ def create_message(message_id):
         sender = from_addr
         recipient = to_addr
     else:
-        sender = (
-            f""""{from_addr}" [Relayed from "{to_addr}"] """
-            f"""<{NO_REPLY_ADDR}@{DOMAIN}>"""
-        )
+        sender = f""""{from_addr}" [Relayed from "{to_addr}"] """ f"""<{NO_REPLY_ADDR}@{DOMAIN}>"""
         recipient = RECIPIENT
         msg["Reply-To"] = f"{REPLY_ADDR}_{TOKEN}@{DOMAIN}"
 
@@ -243,7 +209,8 @@ def create_message(message_id):
         msg["References"] = "\r\n ".join(obj.get_all("References"))
 
     return (
-        to_addr, from_addr,
+        to_addr,
+        from_addr,
         {
             "FromEmailAddress": sender,
             "Destination": {"ToAddresses": [recipient]},

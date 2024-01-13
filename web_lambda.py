@@ -1,7 +1,6 @@
 import os
 
 import boto3
-from botocore.exceptions import ClientError
 
 
 PW = os.getenv("PW")
@@ -223,14 +222,9 @@ def build_history_html():
     row_id = 1
     for addr, data in table.items():
         from_table = HISTORY_FROM_TABLE.format(
-            rows="".join([
-                HISTORY_FROM_ROW.format(address=addr, total=total)
-                for addr, total in data["from"].items()
-            ])
+            rows="".join([HISTORY_FROM_ROW.format(address=addr, total=total) for addr, total in data["from"].items()])
         )
-        rows.append(HISTORY_ROW.format(
-            row_id=row_id, address=addr, total=data["total"], from_table=from_table
-        ))
+        rows.append(HISTORY_ROW.format(row_id=row_id, address=addr, total=data["total"], from_table=from_table))
         row_id += 1
     return HISTORY_BASE.format(rows="".join(rows))
 
@@ -256,11 +250,7 @@ def build_blocklist_html():
 
 
 def lambda_handler(event, context):
-    no = {
-        "statusCode": 401,
-        "body": "<strong>Go away</strong>",
-        "headers": {"Content-Type": "text/html"}
-    }
+    no = {"statusCode": 401, "body": "<strong>Go away</strong>", "headers": {"Content-Type": "text/html"}}
     try:
         if event["queryStringParameters"]["pw"] != PW:
             return no
