@@ -57,7 +57,7 @@ needing them to email you first.
 
 # Optional web Lambda
 The web lambda is a simple frontend that allows viewing a history of emails received and the blocklists.
-![](https://github.com/kura/private-relay/raw/main/web-lambda.png)
+![](https://github.com/kura/private-relay/raw/main/web-preview.png)
 
 ## Setup
 * Permission to read from the `blocklist` and `history` DynamoDB tables.
