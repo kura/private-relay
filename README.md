@@ -62,5 +62,6 @@ The web lambda is a simple frontend that allows viewing a history of emails rece
 ## Setup
 * Permission to read from the `blocklist` and `history` DynamoDB tables.
 * Lambda envvars
-    * `PW` - Some kind of password, like a sha256sum of a string, e.g. `6b3a55e0261b0304143f805a24924d0c1c44524821305f31d9277843b8a10f4e`
-        * This then needs to passed in the query string of the Lambda's `Function URL`, e.g. `https://sgsgfsdghrehrhrehrehasdfa.lambda-url.eu-west-1.on.aws/?pw=6b3a55e0261b0304143f805a24924d0c1c44524821305f31d9277843b8a10f4e`
+    * `AUTH_TOKEN` - The web UI uses HTTP Basic Auth so this is a base64 encoded string of `username:password`, e.g. `echo -n "test:kura | base64`
+* Once the Lambda is provisioned, put an API Gateway HTTP API in front of it
+    * This just needs to integrate with the Lambda, using version 2.0 with a `GET /` route.

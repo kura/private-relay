@@ -3,7 +3,16 @@ import os
 import boto3
 
 
-PW = os.getenv("PW")
+AUTH_TOKEN = os.getenv("AUTH_TOKEN")
+# In shell: echo -n "username:pass" | base64
+
+UNATHED_RESP = {
+    "statusCode": 401,
+    "statusDescription": "Unauthorized",
+    "headers": {
+        "WWW-Authenticate": "Basic"
+    }
+}
 
 BASE = """
 <!doctype html>
@@ -249,13 +258,25 @@ def build_blocklist_html():
     )
 
 
-def lambda_handler(event, context):
-    no = {"statusCode": 401, "body": "<strong>Go away</strong>", "headers": {"Content-Type": "text/html"}}
+class AuthError(Exception):
+    pass
+
+
+def do_auth(event):
     try:
-        if event["queryStringParameters"]["pw"] != PW:
-            return no
-    except KeyError:
-        return no
+        if event["headers"]["authorization"].split(" ")[1] == AUTH_TOKEN:
+            return True
+        else:
+            raise AuthError()
+    except:
+        raise AuthError()
+        
+
+def lambda_handler(event, context):
+    try:
+        do_auth(event)
+    except AuthError:
+        return UNATHED_RESP
 
     body = BASE.format(history=build_history_html(), blocklist=build_blocklist_html())
     return {"statusCode": 200, "body": body, "headers": {"Content-Type": "text/html"}}
