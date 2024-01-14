@@ -32,26 +32,6 @@ RECIPIENT = os.getenv("RECIPIENT")
 # replies  -- this will become <REPLY_ADDR>_<TOKEN>@<DOMAIN>
 REPLY_ADDR = os.getenv("REPLY_ADDR")
 
-# send email to this address for it to be forwarded
-# -- this will become <NEW_ADDR>_<TOKEN>@<DOMAIN>
-#
-# This allows you to email
-#   "<NEW_ADDR>_<TOKEN>@<DOMAIN>"
-# with a subject matching the following format:
-#   <FROM_ADDR> # <TO_ADDR> # <SUBJECT>
-# and have that email forward to the to address, from the from address
-# with the specified subject.
-#
-# i.e. a subject line of "some_alias@aliasdomain.tld # webmaster@example.com # Hi"
-# will send an email as:
-#   From: some_alias@aliasdomain.tld
-#   To: webmaster@example.com
-#   Subject: Hi
-#
-# This means you can initiate email conversations from your aliased domain without
-# needing them to email you first.
-NEW_ADDR = os.getenv("NEW_ADDR")
-
 # noreply  -- this will become <NO_REPLY_ADDR>@<DOMAIN>
 NO_REPLY_ADDR = os.getenv("NO_REPLY_ADDR")
 
@@ -191,12 +171,6 @@ def create_message(message_id):
         r = get_db_message(clean_in_reply_to)
         sender = r["to"]
         recipient = r["from"]
-    elif to_addr == f"{NEW_ADDR}_{TOKEN}@{DOMAIN}":
-        sender_auth(to_addr, from_addr)
-        from_addr, to_addr, subject = subject.split("#")
-        from_addr, to_addr, subject = from_addr.strip(), to_addr.strip(), subject.strip()
-        sender = from_addr
-        recipient = to_addr
     else:
         sender = f""""{from_addr}" [Relayed from "{to_addr}"] """ f"""<{NO_REPLY_ADDR}@{DOMAIN}>"""
         recipient = RECIPIENT
