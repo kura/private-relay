@@ -57,6 +57,15 @@ h1 {{
   text-align: left;
   vertical-align: top;
 }}
+.table .address {{
+  width: 40%
+}}
+.table .count {{
+  width: 10%;
+}}
+.table .addresses {{
+  width: 50%;
+}}
 .table tr:nth-child(odd) td, .inner-table tr:nth-child(odd) td {{
   background-color: #ffffff;
 }}
@@ -66,8 +75,14 @@ h1 {{
 .table tr:nth-child(even) td, .inner-table tr:nth-child(even) td {{
   background-color: #f2f2f2;
 }}
-inner-table tr:nth-child(even) td {{
+.inner-table tr:nth-child(even) td {{
   background-color: #f2f2f2 !important;
+}}
+.inner-table {{
+  width: 100%;
+}}
+.inner-table .address {{
+  width: 80%;
 }}
 .tabs {{
   position: relative;
@@ -148,16 +163,18 @@ inner-table tr:nth-child(even) td {{
 
 HISTORY_BASE = """
 <table class="table">
-<thead><tr><th>Address</th><th>Emails received</th><th>From addresses</th></tr></thead>
+<thead><tr><th class="address">Address</th>
+<th class="count">Emails received</th>
+<th class="addresses">From addresses</th></tr></thead>
 {rows}
 </table>
 """
 
 HISTORY_ROW = """
 <tr>
-<td class="mono">{address}</td>
-<td class="mono">{total}</td>
-<td>
+<td class="address mono">{address}</td>
+<td class="count mono">{total}</td>
+<td class="addresses">
 <!--
 <a id="hide{row_id}" href="#hide{row_id}" class="hide">+ Show</a>
 <a id="show{row_id}" href="#show{row_id}" class="show">- Hide</a>
@@ -175,7 +192,7 @@ HISTORY_FROM_TABLE = """
 """
 
 HISTORY_FROM_ROW = """
-<tr><td class="mono">{address}</td><td class="mono">{total}</td></tr>
+<tr><td class="address mono">{address}</td><td class="mono">{total}</td></tr>
 """
 
 BLOCKLIST_BASE = """
