@@ -62,6 +62,9 @@ BOUNCE_ADDR = os.getenv("BOUNCE_ADDR")
 FROM_ALLOWLIST = os.getenv("FROM_ALLOWLIST")
 FROM_ALLOWLIST = FROM_ALLOWLIST.replace(" ", "").split(",") if FROM_ALLOWLIST else None
 
+EXPIRY = int(os.getenv("EXPIRY") or 7776000)  # Default: 90 days
+HISTORY_EXPIRY = int(os.getenv("HISTORY_EXPIRY") or 31536000)  # Default: 365 days
+
 
 class CreateError(Exception):
     pass
@@ -86,7 +89,7 @@ def put_db_message(message_id, to_addr, from_addr):
             "message_id": message_id,
             "to": email.utils.parseaddr(to_addr)[1],
             "from": email.utils.parseaddr(from_addr)[1],
-            "expires": int(time.time()) + 7776000,  # 90 days
+            "expires": int(time.time()) + EXPIRY
         }
     )
 
@@ -107,7 +110,7 @@ def put_db_history(to_addr, from_addr):
                 "id": uuid,
                 "to": to_addr,
                 "from": from_addr,
-                "expires": int(time.time()) + 31536000,  # 365 days
+                "expires": int(time.time()) + HISTORY_EXPIRY,
             }
         )
 

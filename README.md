@@ -54,6 +54,8 @@ needing them to email you first.
     * `BOUNCE_ADDR` - address to concac with domain, used as `From:` header in bounces e.g. `bouncer` (becomes `From: <BOUNCE_ADDR>@<DOMAIN>`)
     * `FROM_ALLOWLIST` - list of addresses allowed to reply, separated by `,`, e.g. `my.addr@gmail.com`
     * `NEW_ADDR`- address to concat with token and domain as `To:`, e.g. `new` (becomes `To: <NEW_ADDR>_<TOKEN>@<DOMAIN>`)
+    * `EXPIRY` - how long to keep data in the `emails` table in seconds (Default: 90 days)
+    * `EXPIRY_HISTORY` - how long to keep data in the `history` table in seconds (Default: 365 days)
 
 # Optional web Lambda
 The web lambda is a simple frontend that allows viewing a history of emails received and the blocklists.
