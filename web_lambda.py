@@ -10,7 +10,7 @@ UNATHED_RESP = {
     "statusCode": 401,
     "statusDescription": "Unauthorized",
     "headers": {
-        "WWW-Authenticate": "Basic"
+        "WWW-Authenticate": "Basic realm=\"Private Relay\", charset=\"UTF-8\""
     }
 }
 
@@ -18,15 +18,12 @@ BASE = """
 <!doctype html>
 <html>
 <head>
-<style>
+<style type="text/css">
 html {{
   line-height:1.15;
 }}
 body {{
-margin: 1em;
-}}
-main {{
-  display: block;
+  margin: 1em;
 }}
 h1 {{
   font-size: 2em;
@@ -149,10 +146,10 @@ h1 {{
   font-size: 1rem;
 }}
 </style>
-<title>Private Relay Statistics</title>
+<title>Private Relay - Statistics</title>
 </head>
 <body>
-<h1>Private Relay Statistics</h1>
+<h1>Private Relay - Statistics</h1>
 <h2>History</h2>
 {history}
 <h2>Blocklist</h2>

@@ -19,7 +19,7 @@ UNATHED_RESP = {
     "statusCode": 401,
     "statusDescription": "Unauthorized",
     "headers": {
-        "WWW-Authenticate": "Basic"
+        "WWW-Authenticate": "Basic realm=\"Private Relay\", charset=\"UTF-8\""
     }
 }
 
@@ -27,75 +27,104 @@ BASE = """
 <!doctype html>
 <html>
 <head>
-<style>
+<style type="text/css">
 html {{
   line-height:1.15;
 }}
 body {{
-margin: 1em;
+  margin: 1em;
 }}
 h1 {{
   font-size: 2em;
   margin: .67em 0;
 }}
-input[type=email], input[type=text], textarea {{
-  padding: .5em .6em;
-  display: inline-block;
-  border: 1px solid #ccc;
-  box-shadow: inset 0 1px 3px #ddd;
-  border-radius:4px;
-  vertical-align:middle;
-  box-sizing:border-box
+.form input[type="text"],
+.form input[type="email"],
+.form textarea {{
+    padding: 0.5em 0.6em;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-shadow: inset 0 1px 3px #ddd;
+    border-radius: 4px;
+    vertical-align: middle;
+    box-sizing: border-box;
+    width: 600px;
 }}
-input:not([type]) {{
-  padding:.5em .6em;
-  display:inline-block;
-  border:1px solid #ccc;
-  box-shadow:inset 0 1px 3px #ddd;
-  border-radius:4px;
-  box-sizing:border-box;
+.form input[type="text"]:focus,
+.form input[type="email"]:focus,
+.form textarea:focus {{
+    outline: 0;
+    border-color: #129FEA;
 }}
-input[type=email]:focus, input[type=text]:focus, textarea:focus {{
-  outline:0;
-  border-color:#129fea;
+.form label {{
+    margin: 0.5em 0 0.2em;
 }}
-input:not([type]):focus {{
-  outline:0;
-  border-color:#129fea;
+.form fieldset {{
+    margin: 0;
+    padding: 0.35em 0 0.75em;
+    border: 0;
+}}
+.form legend {{
+    display: block;
+    width: 100%;
+    padding: 0.3em 0;
+    margin-bottom: 0.3em;
+    color: #333;
+    border-bottom: 1px solid #e5e5e5;
+}}
+.form-stacked input[type="text"],
+.form-stacked input[type="email"],
+.form-stacked label,
+.form-stacked textarea {{
+    display: block;
+    margin: 0.25em 0;
+}}
+.button {{
+    font-family: inherit;
+    font-size: 100%;
+    padding: 0.5em 1em;
+    color: rgba(0, 0, 0, 0.80);
+    border: none rgba(0, 0, 0, 0);
+    background-color: #E6E6E6;
+    text-decoration: none;
+    border-radius: 2px;
+}}
+.button-hover,
+.button:hover,
+.button:focus {{
+    background-image: linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.10));
+}}
+.button:focus {{
+    outline: 0;
+}}
+.button-active,
+.button:active {{
+    box-shadow: 0 0 0 1px rgba(0,0,0, 0.15) inset, 0 0 6px rgba(0,0,0, 0.20) inset;
+    border-color: #000;
 }}
 </style>
-<title>Send Email</title>
+<title>Private Relay - Create</title>
 </head>
 <body>
-<h1>Send Email</h1>
+<h1>Private Relay - Create</h1>
 {content}
 </body>
 <html>
 """
 
 FORM_CONTENT = """
-<form action="/send" method="POST">
+<form action="/send" method="POST" class="form form-stacked">
 <fieldset>
   <legend>Send email</legend>
-  <div>
-  <label for="from">From: </label>
-  <input id="from" name="from" type="text" />@{domain}
-  </div>
-  <div>
-  <label for="to">To:</label>
-  <input id="to" name="to" type="text" />
-  </div>
-  <div>
-  <label for="subject">Subject:</label>
-  <input id="subject" name="subject" type="text" />
-  </div>
-  <div>
-  <label for="body">Body:</label>
+  <label for="from">From  (@{domain} will automatically be appended)</label>
+  <input type="email" id="from" name="from" placeholder="someone@{domain}" />
+  <label for="to">To</label>
+  <input type="email" id="to" name="to" placeholder="user@domain.tld" />
+  <label for="subject">Subject</label>
+  <input type="text" id="subject" name="subject" placeholder="Hi, how are you?" />
+  <label for="body">Body</label>
   <textarea id="body" name="body" rows="40" cols="40"></textarea>
-  </div>
-  <div>
-  <button type="submit">Send</button>
-  </div>
+  <button type="submit" class="button">Send</button>
 </fieldset>
 </form>
 """
