@@ -162,7 +162,7 @@ def do_auth(event):
             raise AuthError()
     except:
         raise AuthError()
-        
+
 
 def lambda_handler(event, context):
     try:

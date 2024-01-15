@@ -243,9 +243,9 @@ def build_history_html():
     table = build_history_table()
     rows = []
     row_id = 1
-    for addr, data in table.items():
+    for addr, data in sorted(table.items()):
         from_table = HISTORY_FROM_TABLE.format(
-            rows="".join([HISTORY_FROM_ROW.format(address=addr, total=total) for addr, total in data["from"].items()])
+            rows="".join([HISTORY_FROM_ROW.format(address=addr, total=total) for addr, total in sorted(data["from"].items())])
         )
         rows.append(HISTORY_ROW.format(row_id=row_id, address=addr, total=data["total"], from_table=from_table))
         row_id += 1
@@ -266,9 +266,9 @@ def build_blocklist_table():
 def build_blocklist_html():
     table = build_blocklist_table()
     return BLOCKLIST_BASE.format(
-        to_list="".join([f"<li>{addr}</li>" for addr in table["to_addr"]]),
-        from_list="".join([f"<li>{addr}</li>" for addr in table["from_addr"]]),
-        domain_list="".join([f"<li>{addr}</li>" for addr in table["domain"]]),
+        to_list="".join([f"<li>{addr}</li>" for addr in sorted(table["to_addr"])]),
+        from_list="".join([f"<li>{addr}</li>" for addr in sorted(table["from_addr"])]),
+        domain_list="".join([f"<li>{addr}</li>" for addr in sorted(table["domain"])]),
     )
 
 
