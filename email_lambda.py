@@ -67,8 +67,8 @@ def put_db_message(message_id, to_addr, from_addr):
     boto3.resource("dynamodb").Table("emails").put_item(
         Item={
             "message_id": message_id,
-            "to": email.utils.parseaddr(to_addr)[1],
-            "from": email.utils.parseaddr(from_addr)[1],
+            "to": email.utils.parseaddr(to_addr)[1].lower(),
+            "from": email.utils.parseaddr(from_addr)[1].lower(),
             "expires": int(time.time()) + EXPIRY
         }
     )
@@ -88,8 +88,8 @@ def put_db_history(to_addr, from_addr):
         boto3.resource("dynamodb").Table("history").put_item(
             Item={
                 "id": uuid,
-                "to": to_addr,
-                "from": from_addr,
+                "to": to_addr.lower(),
+                "from": from_addr.lower(),
                 "expires": int(time.time()) + HISTORY_EXPIRY,
             }
         )

@@ -226,8 +226,8 @@ def get_db_history():
 def build_history_table():
     table = {}
     for item in get_db_history():
-        to_addr = item["to"]
-        from_addr = item["from"]
+        to_addr = item["to"].lower()
+        from_addr = item["from"].lower()
         if not to_addr in table:
             table[to_addr] = {"from": {from_addr: 1}, "total": 1}
         else:
@@ -259,7 +259,7 @@ def get_db_blocklist():
 def build_blocklist_table():
     table = {"to_addr": [], "from_addr": [], "domain": []}
     for item in get_db_blocklist():
-        table[item["blocklist"]].append(item["address"])
+        table[item["blocklist"]].append(item["address"].lower())
     return table
 
 
@@ -284,7 +284,7 @@ def do_auth(event):
             raise AuthError()
     except:
         raise AuthError()
-        
+
 
 def lambda_handler(event, context):
     try:
